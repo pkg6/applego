@@ -1,16 +1,20 @@
 package applepay
 
 import (
+	"errors"
 	"fmt"
 	"github.com/golang-jwt/jwt"
-	"github.com/pkg6/applego/utility"
+	"net/url"
 )
 
 // GetTransactionHistory Get Transaction History
 // Doc: https://developer.apple.com/documentation/appstoreserverapi/get_transaction_history
-func (a *ApiClient) GetTransactionHistory(transactionId string, body utility.BodyMap) (resp *ResponseTransactionHistory, err error) {
+func (a *ApiClient) GetTransactionHistory(transactionId string, body url.Values) (resp *ResponseTransactionHistory, err error) {
 	resp = new(ResponseTransactionHistory)
-	path := fmt.Sprintf(getTransactionHistory, transactionId) + "?" + body.EncodeURLParams()
+	path := fmt.Sprintf(getTransactionHistory, transactionId)
+	if len(body) > 0 {
+		path += "?" + body.Encode()
+	}
 	err = a.WithTokenGet(path, nil, &resp)
 	return
 }
@@ -67,7 +71,7 @@ type ResponseTransactionInfo struct {
 
 func (t *ResponseTransactionInfo) DecodeSignedTransaction() (ti *TransactionsItem, err error) {
 	if t.SignedTransactionInfo == "" {
-		return nil, fmt.Errorf("signedTransactionInfo is empty")
+		return nil, errors.New("signedTransactionInfo is empty")
 	}
 	ti = &TransactionsItem{}
 	if err = ExtractClaims(t.SignedTransactionInfo, ti); err != nil {

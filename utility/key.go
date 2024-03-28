@@ -4,7 +4,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/x509"
 	"encoding/pem"
-	"fmt"
+	"errors"
 )
 
 func EcdsaPrivateKey(key []byte) (*ecdsa.PrivateKey, error) {
@@ -12,7 +12,7 @@ func EcdsaPrivateKey(key []byte) (*ecdsa.PrivateKey, error) {
 	// Parse PEM block
 	var block *pem.Block
 	if block, _ = pem.Decode(key); block == nil {
-		return nil, fmt.Errorf("decode private key error")
+		return nil, errors.New("decode private key error")
 	}
 	// Parse the key
 	var parsedKey any
@@ -23,7 +23,31 @@ func EcdsaPrivateKey(key []byte) (*ecdsa.PrivateKey, error) {
 	}
 	pkey, ok := parsedKey.(*ecdsa.PrivateKey)
 	if !ok {
-		return nil, fmt.Errorf("private key must be ECP private key")
+		return nil, errors.New("private key must be ECP private key")
 	}
 	return pkey, nil
+}
+
+func VerifyCert(rootPEM, certByte, intermediaCertStr []byte) error {
+	roots := x509.NewCertPool()
+	ok := roots.AppendCertsFromPEM(rootPEM)
+	if !ok {
+		return errors.New("failed to parse root certificate")
+	}
+	interCert, err := x509.ParseCertificate(intermediaCertStr)
+	if err != nil {
+		return errors.New("failed to parse intermedia certificate")
+	}
+	intermedia := x509.NewCertPool()
+	intermedia.AddCert(interCert)
+	cert, err := x509.ParseCertificate(certByte)
+	if err != nil {
+		return err
+	}
+	opts := x509.VerifyOptions{
+		Roots:         roots,
+		Intermediates: intermedia,
+	}
+	_, err = cert.Verify(opts)
+	return err
 }

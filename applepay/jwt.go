@@ -8,11 +8,13 @@ import (
 	"errors"
 	"fmt"
 	"github.com/golang-jwt/jwt"
+	"github.com/pkg6/applego/utility"
 	"reflect"
 	"strings"
 )
 
 //https://www.apple.com/certificateauthority/
+//https://www.apple.com/certificateauthority/AppleRootCA-G3.cer
 //openssl x509 -inform der -in AppleRootCA-G3.cer -out apple_root.pem
 const rootPEM = `
 -----BEGIN CERTIFICATE-----
@@ -49,7 +51,7 @@ func ExtractClaims(signedPayload string, tran jwt.Claims) (err error) {
 	if err != nil {
 		return err
 	}
-	if err = verifyCert(rootCertStr, intermediaCertStr); err != nil {
+	if err = utility.VerifyCert([]byte(rootPEM), rootCertStr, intermediaCertStr); err != nil {
 		return err
 	}
 	_, err = jwt.ParseWithClaims(tokenStr, tran, func(token *jwt.Token) (any, error) {
@@ -105,28 +107,4 @@ func extractHeaderByIndex(tokenStr string, index int) ([]byte, error) {
 		return nil, err
 	}
 	return certByte, nil
-}
-
-func verifyCert(certByte, intermediaCertStr []byte) error {
-	roots := x509.NewCertPool()
-	ok := roots.AppendCertsFromPEM([]byte(rootPEM))
-	if !ok {
-		return errors.New("failed to parse root certificate")
-	}
-	interCert, err := x509.ParseCertificate(intermediaCertStr)
-	if err != nil {
-		return errors.New("failed to parse intermedia certificate")
-	}
-	intermedia := x509.NewCertPool()
-	intermedia.AddCert(interCert)
-	cert, err := x509.ParseCertificate(certByte)
-	if err != nil {
-		return err
-	}
-	opts := x509.VerifyOptions{
-		Roots:         roots,
-		Intermediates: intermedia,
-	}
-	_, err = cert.Verify(opts)
-	return err
 }

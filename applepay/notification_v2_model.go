@@ -1,7 +1,7 @@
 package applepay
 
 import (
-	"fmt"
+	"errors"
 	"github.com/golang-jwt/jwt"
 	"time"
 )
@@ -93,10 +93,10 @@ func (p *TransactionInfo) PurchaseDateTime() (time.Time, error) {
 }
 func (d *NotificationV2Payload) DecodeRenewalInfo() (ri *RenewalInfo, err error) {
 	if d.Data == nil {
-		return nil, fmt.Errorf("data is nil")
+		return nil, errors.New("data is nil")
 	}
 	if d.Data.SignedRenewalInfo == "" {
-		return nil, fmt.Errorf("data.signedRenewalInfo is empty")
+		return nil, errors.New("data.signedRenewalInfo is empty")
 	}
 	ri = &RenewalInfo{}
 	if err = ExtractClaims(d.Data.SignedRenewalInfo, ri); err != nil {
@@ -107,10 +107,10 @@ func (d *NotificationV2Payload) DecodeRenewalInfo() (ri *RenewalInfo, err error)
 
 func (d *NotificationV2Payload) DecodeTransactionInfo() (ti *TransactionInfo, err error) {
 	if d.Data == nil {
-		return nil, fmt.Errorf("data is nil")
+		return nil, errors.New("data is nil")
 	}
 	if d.Data.SignedTransactionInfo == "" {
-		return nil, fmt.Errorf("data.signedTransactionInfo is empty")
+		return nil, errors.New("data.signedTransactionInfo is empty")
 	}
 	ti = &TransactionInfo{}
 	if err = ExtractClaims(d.Data.SignedTransactionInfo, ti); err != nil {

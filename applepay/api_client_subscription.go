@@ -1,6 +1,9 @@
 package applepay
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // GetAllSubscriptionStatuses Get All Subscription Statuses
 // Doc: https://developer.apple.com/documentation/appstoreserverapi/get_all_subscription_statuses
@@ -31,7 +34,7 @@ type LastTransactionsItem struct {
 
 func (d *LastTransactionsItem) DecodeRenewalInfo() (ri *RenewalInfo, err error) {
 	if d.SignedRenewalInfo == "" {
-		return nil, fmt.Errorf("SignedRenewalInfo is empty")
+		return nil, errors.New("SignedRenewalInfo is empty")
 	}
 	ri = &RenewalInfo{}
 	if err = ExtractClaims(d.SignedRenewalInfo, ri); err != nil {
@@ -42,7 +45,7 @@ func (d *LastTransactionsItem) DecodeRenewalInfo() (ri *RenewalInfo, err error) 
 
 func (d *LastTransactionsItem) DecodeTransactionInfo() (ti *TransactionInfo, err error) {
 	if d.SignedTransactionInfo == "" {
-		return nil, fmt.Errorf("signedTransactionInfo is empty")
+		return nil, errors.New("signedTransactionInfo is empty")
 	}
 	ti = &TransactionInfo{}
 	if err = ExtractClaims(d.SignedTransactionInfo, ti); err != nil {

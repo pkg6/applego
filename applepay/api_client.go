@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/tls"
-	"fmt"
+	"errors"
 	"github.com/golang-jwt/jwt"
 	"github.com/pkg6/applego/utility"
 	"github.com/pkg6/go-requests"
@@ -42,7 +42,7 @@ type SignedTransaction string
 
 func (s *SignedTransaction) DecodeSignedTransaction() (ti *TransactionsItem, err error) {
 	if *s == "" {
-		return nil, fmt.Errorf("signedTransactions is empty")
+		return nil, errors.New("signedTransactions is empty")
 	}
 	ti = new(TransactionsItem)
 	if err = ExtractClaims(string(*s), ti); err != nil {

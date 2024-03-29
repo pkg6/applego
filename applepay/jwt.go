@@ -7,10 +7,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/golang-jwt/jwt"
+	jwt2 "github.com/golang-jwt/jwt"
+	"github.com/pkg6/applego/jwt"
 	"github.com/pkg6/applego/utility"
 	"reflect"
 	"strings"
+	"time"
 )
 
 //https://www.apple.com/certificateauthority/
@@ -34,10 +36,25 @@ at+qIxUCMG1mihDK1A3UT82NQz60imOlM27jbdoXt2QfyFMm+YhidDkLF1vLUagM
 -----END CERTIFICATE-----
 `
 
+// DefaultGenerateJWTToken 生成token
+func DefaultGenerateJWTToken(privateKey *ecdsa.PrivateKey, iss, bid, keyID string) (string, error) {
+	return jwt.Encode(privateKey, jwt2.SigningMethodES256, CustomClaims{
+		Iss: iss,
+		Iat: time.Now().Unix(),
+		Exp: time.Now().Add(5 * time.Minute).Unix(),
+		Aud: "appstoreconnect-v1",
+		Bid: bid,
+	}, map[string]any{
+		"alg": "ES256",
+		"kid": keyID,
+		"typ": "JWT",
+	})
+}
+
 // ExtractClaims 解析jws格式数据
 // signedPayload：jws格式数据
 // tran：指针类型的结构体，用于接收解析后的数据
-func ExtractClaims(signedPayload string, tran jwt.Claims) (err error) {
+func ExtractClaims(signedPayload string, tran jwt2.Claims) (err error) {
 	valueOf := reflect.ValueOf(tran)
 	if valueOf.Kind() != reflect.Ptr {
 		return errors.New("tran must be ptr struct")
@@ -54,7 +71,7 @@ func ExtractClaims(signedPayload string, tran jwt.Claims) (err error) {
 	if err = utility.VerifyCert([]byte(rootPEM), rootCertStr, intermediaCertStr); err != nil {
 		return err
 	}
-	_, err = jwt.ParseWithClaims(tokenStr, tran, func(token *jwt.Token) (any, error) {
+	_, err = jwt2.ParseWithClaims(tokenStr, tran, func(token *jwt2.Token) (any, error) {
 		return extractPublicKeyFromToken(tokenStr)
 	})
 	if err != nil {

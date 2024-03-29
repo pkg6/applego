@@ -52,11 +52,11 @@ func (s *SignedTransaction) DecodeSignedTransaction() (ti *TransactionsItem, err
 }
 
 type ApiClientConfig struct {
-	ISS          string `json:"iss"`
-	BID          string `json:"bid"`
-	KeyID        string `json:"keyID"`
-	PrivateKey   string `json:"privateKey"`
-	IsProduction bool   `json:"isProduction"`
+	ISS          string
+	BID          string
+	KeyID        string
+	PrivateKey   string
+	IsProduction bool
 }
 
 func (config *ApiClientConfig) NewApi() (api *ApiClient, err error) {
@@ -72,6 +72,7 @@ func (config *ApiClientConfig) NewApi() (api *ApiClient, err error) {
 	return NewApiClient(config.ISS, config.BID, config.KeyID, privateKey, config.IsProduction)
 }
 
+type GenerateJWTToken func(privateKey *ecdsa.PrivateKey, iss, bid, keyID string) (string, error)
 type ApiClient struct {
 	//https://appstoreconnect.apple.com/access/api/subs
 	// Your issuer ID from the Key page in App Store Connect (exp: "57246542-96fe-1a63-e053-0824d011072a")
@@ -84,12 +85,20 @@ type ApiClient struct {
 	IsProduction bool
 	//Parsing private keys
 	PrivateKey *ecdsa.PrivateKey
+	//生成token函数
+	GenerateJWTToken GenerateJWTToken
 	//Request client
 	Client *requests.Client
 }
 
 func NewApiClient(iss, bid, keyID string, privateKey []byte, isProduction bool) (api *ApiClient, err error) {
-	api = &ApiClient{Bid: bid, Iss: iss, KeyID: keyID, IsProduction: isProduction}
+	api = &ApiClient{
+		Bid:              bid,
+		Iss:              iss,
+		KeyID:            keyID,
+		IsProduction:     isProduction,
+		GenerateJWTToken: DefaultGenerateJWTToken,
+	}
 	api.PrivateKey, err = utility.EcdsaPrivateKey(privateKey)
 	if err != nil {
 		return
@@ -133,28 +142,14 @@ type CustomClaims struct {
 
 // BuildJwtToken
 //https://developer.apple.com/documentation/appstoreserverapi/generating_tokens_for_api_requests
-func (a *ApiClient) BuildJwtToken() (string, error) {
-	claims := CustomClaims{
-		Iss: a.Iss,
-		Iat: time.Now().Unix(),
-		Exp: time.Now().Add(5 * time.Minute).Unix(),
-		Aud: "appstoreconnect-v1",
-		Bid: a.Bid,
+func (a *ApiClient) generateClientSecret() (string, error) {
+	if a.GenerateJWTToken == nil {
+		a.GenerateJWTToken = DefaultGenerateJWTToken
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
-	token.Header = map[string]any{
-		"alg": "ES256",
-		"kid": a.KeyID,
-		"typ": "JWT",
-	}
-	accessToken, err := token.SignedString(a.PrivateKey)
-	if err != nil {
-		return "", err
-	}
-	return accessToken, nil
+	return a.GenerateJWTToken(a.PrivateKey, a.Iss, a.Bid, a.KeyID)
 }
 func (a *ApiClient) WithTokenGet(path string, data, d any) error {
-	token, err := a.BuildJwtToken()
+	token, err := a.generateClientSecret()
 	if err != nil {
 		return err
 	}
@@ -162,7 +157,7 @@ func (a *ApiClient) WithTokenGet(path string, data, d any) error {
 	return a.Client.GetUnmarshal(context.Background(), path, data, d)
 }
 func (a *ApiClient) WithTokenPost(path string, data, d any) error {
-	token, err := a.BuildJwtToken()
+	token, err := a.generateClientSecret()
 	if err != nil {
 		return err
 	}
@@ -170,7 +165,7 @@ func (a *ApiClient) WithTokenPost(path string, data, d any) error {
 	return a.Client.AsJson().PostUnmarshal(context.Background(), path, data, d)
 }
 func (a *ApiClient) WithTokenPut(path string, data, d any) error {
-	token, err := a.BuildJwtToken()
+	token, err := a.generateClientSecret()
 	if err != nil {
 		return err
 	}
